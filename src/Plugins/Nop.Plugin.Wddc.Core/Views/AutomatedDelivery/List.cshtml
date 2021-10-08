@@ -1,0 +1,242 @@
+﻿@using Nop.Services.Stores
+@using Nop.Plugin.Wddc.Core.Models
+@using Nop.Core.Infrastructure
+@using Nop.Web.Framework.UI
+@using Nop.Web.Framework
+@model AutomatedOrderListModel
+
+@{
+    Layout = "_AdminLayout.cshtml";
+    var defaultGridPageSize = EngineContext.Current.Resolve<Nop.Core.Domain.Common.AdminAreaSettings>
+    ().DefaultGridPageSize;
+    var gridPageSizes = EngineContext.Current.Resolve<Nop.Core.Domain.Common.AdminAreaSettings>
+        ().GridPageSizes;
+    var stores = EngineContext.Current.Resolve<IStoreService>
+        ().GetAllStores();
+
+    //page title
+    ViewBag.Title = "Wddc Automated Order List";
+    //active menu item (system name)
+    Html.SetActiveMenuItemSystemName("Wddc.AutomatedDelivery");
+}
+
+
+<div class="content">
+    <div class="form-horizontal">
+        <div class="panel-group">
+            <div class="panel panel-default panel-search">
+                <div class="panel-body">
+                    <div class="row">
+                        <div class="col-md-5">
+                            <div class="form-group">
+                                <div class="col-md-4">
+                                    @Html.NopLabelFor(model => model.StartDate)
+                                </div>
+                                <div class="col-md-8">
+                                    @Html.NopEditorFor(model => model.StartDate)
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="col-md-4">
+                                    @Html.NopLabelFor(model => model.EndDate)
+                                </div>
+                                <div class="col-md-8">
+                                    @Html.NopEditorFor(model => model.EndDate)
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="col-md-4">
+                                    @Html.NopLabelFor(model => model.ProductId)
+                                </div>
+                                <div class="col-md-8">
+                                    <input type="text" id="search-product-name" autocomplete="off" class="form-control" />
+                                    <span id="search-product-friendly-name"></span>
+                                    <button type="button" id="search-product-clear" class="btn bg-gray" style="display: none; margin-top: 5px;">@T("Admin.Common.Clear")</button>
+
+                                    @Html.TextBoxFor(model => model.ProductId, new { autocomplete = "off", style = "display:none;" })
+                                    <script type="text/javascript">
+                                            $(document).ready(function() {
+                                                $('#search-product-name').autocomplete({
+                                                    delay: 500,
+                                                    minLength: 3,
+                                                    source: '@(Url.Action("ProductSearchAutoComplete"))',
+                                                    select: function(event, ui) {
+                                                        $('#@Html.FieldIdFor(model => model.ProductId)').val(ui.item.productid);
+                                                        $('#search-product-friendly-name').text(ui.item.label);
+
+                                                        $('#search-product-clear').show();
+                                                        return false;
+                                                    }
+                                                });
+
+                                                //remove button
+                                                $('#search-product-clear').click(function() {
+                                                    $('#@Html.FieldIdFor(model => model.ProductId)').val('0');
+                                                    $('#search-product-friendly-name').text('');
+                                                    $('#search-product-clear').hide();
+                                                    return false;
+                                                });
+                                            });
+                                    </script>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-7">
+                            <div class="form-group">
+                                <div class="col-md-4">
+                                    @Html.NopLabelFor(model => model.BillingEmail)
+                                </div>
+                                <div class="col-md-8">
+                                    @Html.NopEditorFor(model => model.BillingEmail)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-7 col-md-offset-5">
+                            <button type="button" id="search-orders" class="btn btn-primary btn-search">
+                                <i class="fa fa-search"></i>
+                                @T("Admin.Common.Search")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel panel-default">
+                <div class="panel-body">
+                    <div id="orders-grid"></div>
+
+                    <script>
+                            $(document).ready(function() {
+                                $("#orders-grid").kendoGrid({
+                                    dataSource: {
+                                        type: "json",
+                                        transport: {
+                                            read: {
+                                                url: "@Html.Raw(Url.Action("WebOrderList", "AutomatedDelivery"))",
+                                                type: "POST",
+                                                dataType: "json",
+                                                data: additionalData
+                                            }
+                                        },
+                                        schema: {
+                                            data: "Data",
+                                            total: "Total",
+                                            errors: "Errors"
+                                        },
+                                        error: function(e) {
+                                            display_kendoui_grid_error(e);
+                                            // Cancel the changes
+                                            this.cancelChanges();
+                                        },
+                                        pageSize: @(defaultGridPageSize),
+                                        serverPaging: true,
+                                        serverFiltering: true,
+                                        serverSorting: true
+                                    },
+                                    pageable: {
+                                        refresh: true,
+                                        pageSizes: [@(gridPageSizes)],
+                                        @Html.Partial("_GridPagerMessages")
+                                    },
+                                    editable: {
+                                        confirmation: "@T("Admin.Common.DeleteConfirmation")",
+                                        mode: "inline"
+                                    },
+                                    scrollable: false,
+                                    columns: [
+                                        {
+                                            field: "NopOrderId",
+                                            title: "Order Id",
+                                            width: 80
+                                        }, {
+                                            field: "WebOrderStatus",
+                                            title: "Status",
+                                            width: 100,
+                                            template: '<span class="grid-report-item ' +
+                                                '# if(WebOrderStatusId == 0) {# yellow #} #' +
+                                                '# if(WebOrderStatusId == 1) {# blue #} #' +
+                                                '# if(WebOrderStatusId == 2) {# red #} #' +
+                                                '# if(WebOrderStatusId == 5) {# red #} #' +
+                                                '# if(WebOrderStatusId == 10) {# purple #} #' +
+                                                '# if(WebOrderStatusId == 15) {# green #} #' +
+                                                '# if(WebOrderStatusId == 20) {# green #} #' +
+                                                '# if(WebOrderStatusId == 21) {# red #} #' +
+                                                '# if(WebOrderStatusId == 22) {# red #} #' +
+                                                '# if(WebOrderStatusId == 23) {# red #} #' +
+                                                '# if(WebOrderStatusId == 24) {# red #} #' +
+                                                '# if(WebOrderStatusId == 25) {# red #} #' +
+                                                '# if(WebOrderStatusId == 30) {# green #} #' +
+                                                '">#=WebOrderStatus#</span>'
+                                        }, {
+                                            field: "OrderTotal",
+                                            title: "Order Total",
+                                            width: 100
+                                        }, {
+                                            field: "CustomerEmail",
+                                            title: "@T("Admin.Orders.Fields.Customer")",
+                                            width: 250,
+                                            template: '#=CustomerFullName# (#=CustomerEmail#)'
+                                        }, {
+                                            field: "CreatedOn",
+                                            title: "@T("Admin.Orders.Fields.CreatedOn")",
+                                            width: 150,
+                                            type: "date",
+                                            format: "{0:G}"
+                                        }, {
+                                            field: "NopOrderId",
+                                            title: "@T("Admin.Common.View")",
+                                            width: 50,
+                                            headerAttributes: { style: "text-align:center" },
+                                            attributes: { style: "text-align:center" },
+                                            template: '<a class="btn btn-default" href="/Admin/Order/Edit/#=NopOrderId#"><i class="fa fa-eye"></i>View Order</a>'
+                                        }
+                                    ]
+                                } );
+                            });
+                    </script>
+
+                    <script type="text/javascript">
+                            var selectedIds = [];
+                            var reportAggregates = "";
+
+                            $(document).ready(function () {
+                                //search button
+                                $('#search-orders').click(function () {
+                                    //search
+                                    var grid = $('#orders-grid').data('kendoGrid');
+                                    grid.dataSource.page(1); //new search. Set page size to 1
+                                    //grid.dataSource.read(); we already loaded the grid above using "page" function
+                                    //clear selected checkboxes
+                                    $('.checkboxGroups').attr('checked', false).change();
+                                    selectedIds = [];
+                                    return false;
+                                });
+
+                                $("".concat("#@Html.FieldIdFor(model => model.BillingEmail),",
+                                    "#@Html.FieldIdFor(model => model.BillingLastName)")).keydown(function (event) {
+                                        if (event.keyCode === 13) {
+                                            $("#search-orders").click();
+                                            return false;
+                                        }
+                                });
+                            });
+
+                            function additionalData() {
+                                var data = {
+                                    StartDate: $('#@Html.FieldIdFor(model => model.StartDate)').val(),
+                                    EndDate: $('#@Html.FieldIdFor(model => model.EndDate)').val(),
+                                    OrderStatusIds: $('#@Html.FieldIdFor(model => model.OrderStatusIds)').val(),
+                                    BillingEmail: $('#@Html.FieldIdFor(model => model.BillingEmail)').val(),
+                                    BillingLastName: $('#@Html.FieldIdFor(model => model.BillingLastName)').val(),
+                                    ProductId: $('#@Html.FieldIdFor(model => model.ProductId)').val(),
+                                };
+                                addAntiForgeryToken(data);
+                                return data;
+                            }
+                    </script>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

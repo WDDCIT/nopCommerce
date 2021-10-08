@@ -1,0 +1,9 @@
+﻿Group: Wddc
+FriendlyName: Wddc Automated Delivery
+SystemName: Wddc.AutomatedDelivery
+Version: 1.00
+SupportedVersions: 3.90
+Author: Wddc - Jason Reddekopp
+DisplayOrder: 1
+FileName: Nop.Plugin.Wddc.Core.dll
+Description: Automatically ships products from WDDC to your store
