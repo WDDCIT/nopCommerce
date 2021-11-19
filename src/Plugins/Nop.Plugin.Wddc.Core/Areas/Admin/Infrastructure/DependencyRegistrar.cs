@@ -3,7 +3,7 @@ using Nop.Core.Configuration;
 using Nop.Core.Infrastructure;
 using Nop.Core.Infrastructure.DependencyManagement;
 
-namespace Nop.Plugin.Wddc.Core.Infrastructure
+namespace Nop.Plugin.Wddc.Core.Areas.Admin.Infrastructure
 {
     public class DependencyRegistrar : IDependencyRegistrar
     {

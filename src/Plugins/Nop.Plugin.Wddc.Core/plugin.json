@@ -1,0 +1,11 @@
+﻿{
+  "Group": "Wddc",
+  "FriendlyName": "Wddc Core",
+  "SystemName": "Wddc.Core",
+  "Version": "1.00",
+  "SupportedVersions": [ "4.40" ],
+  "Author": "Wddc, Brad Haveman",
+  "DisplayOrder": 1,
+  "FileName": "Nop.Plugin.Wddc.Core.dll",
+  "Description": "Basic functionality for WDDC plugins"
+}
