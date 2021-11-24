@@ -53,6 +53,12 @@
     <Folder Include="Models\" />
     <Folder Include="Services\" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="WddcApiClient">
+      <HintPath>bin\WddcApiClient.dll</HintPath>
+    </Reference>
+  </ItemGroup>
  
   <!-- This target execute after "Build" target -->
   <Target Name="NopTarget" AfterTargets="Build">

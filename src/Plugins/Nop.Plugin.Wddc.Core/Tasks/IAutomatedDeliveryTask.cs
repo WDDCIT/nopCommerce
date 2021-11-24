@@ -2,7 +2,7 @@
 
 namespace Nop.Plugin.Wddc.Core.Tasks
 {
-    public interface IAutomatedDeliveryTask : ITask
+    public interface IAutomatedDeliveryTask : IScheduleTask
     {
         string Name { get; }
         bool Enabled { get; }

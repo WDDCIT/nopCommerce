@@ -1,17 +1,24 @@
-﻿using Nop.Core.Domain.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+using Nop.Core;
+using Nop.Core.Domain.Cms;
+using Nop.Core.Domain.Tasks;
 using Nop.Core.Infrastructure;
-using Nop.Core.Plugins;
 using Nop.Plugin.Wddc.Core.Tasks;
+using Nop.Services.Cms;
 using Nop.Services.Common;
 using Nop.Services.Configuration;
 using Nop.Services.Directory;
 using Nop.Services.Localization;
+using Nop.Services.Messages;
+using Nop.Services.Plugins;
 using Nop.Services.Security;
 using Nop.Services.Shipping.Tracking;
+using Nop.Services.Stores;
 using Nop.Services.Tasks;
+using Nop.Web.Framework.Infrastructure;
 using Nop.Web.Framework.Menu;
-using System.Linq;
-using System.Web.Routing;
+using Task = System.Threading.Tasks.Task;
 
 namespace Nop.Plugin.Wddc.Core
 {
@@ -30,6 +37,8 @@ namespace Nop.Plugin.Wddc.Core
         private readonly IScheduleTaskService _scheduleTaskService;
         private readonly IPermissionService _permissionService;
         private readonly AutomatedDeliverySettings _automatedDeliverySettings;
+        private readonly ILanguageService _languageService;
+        private readonly IWebHelper _webHelper;
 
         #endregion
 
@@ -52,7 +61,9 @@ namespace Nop.Plugin.Wddc.Core
             ISettingService settingService,
             IScheduleTaskService scheduleTaskService,
             IPermissionService permissionService,
-            AutomatedDeliverySettings automatedDeliverySettings)
+            AutomatedDeliverySettings automatedDeliverySettings, 
+            ILanguageService languageService,
+            IWebHelper webHelper)
         {
             _addressService = addressService;
             _countryService = countryService;
@@ -62,6 +73,8 @@ namespace Nop.Plugin.Wddc.Core
             _scheduleTaskService = scheduleTaskService;
             _permissionService = permissionService;
             _automatedDeliverySettings = automatedDeliverySettings;
+            _languageService = languageService;
+            _webHelper = webHelper;
         }
 
         #endregion
@@ -78,68 +91,65 @@ namespace Nop.Plugin.Wddc.Core
 
         #endregion
 
-        #region Utilities
-
-        private void UpdateStringResources()
-        {
-            this.AddOrUpdatePluginLocaleResource("enums.nop.core.domain.shipping.shippingstatus.notyetshipped", "Not yet shipped");
-            this.AddOrUpdatePluginLocaleResource("admin.salesreport.incomplete.totalnotshippedorders", "Total not yet shipped orders");
-            this.AddOrUpdatePluginLocaleResource("admin.orders.list.shippingstatus.hint", "Search by a specific shipping statuses e.g. Not yet shipped.");
-            this.AddOrUpdatePluginLocaleResource("admin.customers.reports.bestby.shippingstatus.hint", "Search by a specific shipping statuses e.g. Not yet shipped.");
-            this.AddOrUpdatePluginLocaleResource("admin.affiliates.orders.shippingstatus.hint", "Search by a specific shipping statuses e.g. Not yet shipped.");
-            this.AddOrUpdatePluginLocaleResource("admin.orders.shipments.shipselected", "Set as shipped (selected)");
-        }
-
-        private void RevertStringResources()
-        {
-            this.AddOrUpdatePluginLocaleResource("enums.nop.core.domain.shipping.shippingstatus.notyetshipped", "Not yet shipped");
-            this.AddOrUpdatePluginLocaleResource("admin.salesreport.incomplete.totalnotshippedorders", "Total not yet shipped orders");
-            this.AddOrUpdatePluginLocaleResource("admin.orders.list.shippingstatus.hint", "Search by a specific shipping statuses e.g. Not yet shipped.");
-            this.AddOrUpdatePluginLocaleResource("admin.customers.reports.bestby.shippingstatus.hint", "Search by a specific shipping statuses e.g. Not yet shipped.");
-            this.AddOrUpdatePluginLocaleResource("admin.affiliates.orders.shippingstatus.hint", "Search by a specific shipping statuses e.g. Not yet shipped.");
-            this.AddOrUpdatePluginLocaleResource("admin.orders.shipments.shipselected", "Set as shipped (selected)");
-        }
-
-        #endregion
-
         #region Methods
 
         /// <summary>
-        /// Gets a route for provider configuration
+        /// Gets a configuration page URL
         /// </summary>
-        /// <param name="actionName">Action name</param>
-        /// <param name="controllerName">Controller name</param>
-        /// <param name="routeValues">Route values</param>
-        public void GetConfigurationRoute(out string actionName, out string controllerName, out RouteValueDictionary routeValues)
+        public override string GetConfigurationPageUrl()
         {
-            actionName = "Configure";
-            controllerName = "AutomatedDelivery";
-            routeValues = new RouteValueDictionary { { "Namespaces", "Nop.Plugin.Wddc.Core.Controllers" }, { "area", null } };
+            return $"{_webHelper.GetStoreLocation()}Admin/WddcCore/Configure";
+        }
+
+        public async Task RevertLocaleResources()
+        {
+
+            await _localizationService.AddLocaleResourceAsync(new Dictionary<string, string>
+            {
+                ["Enums.Nop.Core.Domain.Shipping.ShippingStatus.NotYetShipped"] = "Not yet shipped",
+                ["Admin.SalesReport.Incomplete.TotalNotShippedOrders"] = "Total not yet shipped orders",
+                ["Admin.Orders.List.ShippingStatus.Hint"] = "Search by a specific shipping statuses e.g. Not yet shipped.",
+                ["Admin.Customers.Reports.BestBy.ShippingStatus.Hint"] = "Search by a specific shipping statuses e.g. Not yet shipped.", // seems to be a dupe?
+                ["Admin.Affiliates.Orders.ShippingStatus.Hint"] = "Search by a specific shipping statuses e.g. Not yet shipped.", // seems to be a dupe?
+                ["Admin.Orders.Shipments.ShipSelected"] = "Set as shipped (selected)",
+            });
+
         }
 
         /// <summary>
         /// Install the plugin
         /// </summary>
-        public override void Install()
+        public override async Task InstallAsync()
         {
-            UpdateStringResources();
+            // settings
+            var selfManagedRes = await _localizationService.GetLocaleStringResourceByNameAsync($"Plugins.Wddc.AutomatedDelivery.IsSelfManaged", 1, false);
 
-            this.AddOrUpdatePluginLocaleResource("nop.plugin.wddc.automateddelivery.settings.testmode", "Test mode");
-            this.AddOrUpdatePluginLocaleResource("Plugins.Wddc.AutomatedDelivery.Fields.AutomaticallyProcessOrdersWithWddc", "Automate orders");
-            this.AddOrUpdatePluginLocaleResource("Plugins.Wddc.AutomatedDelivery.Fields.AutomaticallyProcessOrdersWithWddc.Hint", "Check to automatically send orders to WDDC, uncheck for self-managed installs");
 
-            // get installation setting
-            var selfManagedString = _localizationService
-                .GetLocaleStringResourceByName("Plugins.Wddc.AutomatedDelivery.IsSelfManaged")
-                ?.ResourceValue;
 
-            bool.TryParse(selfManagedString, out bool selfManaged);
+            bool.TryParse(selfManagedRes.ResourceValue, out bool selfManaged);
 
-            var settings = new AutomatedDeliverySettings
+            await _settingService.SaveSettingAsync(new AutomatedDeliverySettings
             {
                 AutomaticallyProcessOrders = !selfManaged
-            };
-            _settingService.SaveSetting(settings);
+            });
+
+            /* first 3 belong in AutomatedDelivery, rest do not seem to be an actual change from default.
+            // locales
+            await _localizationService.AddLocaleResourceAsync(new Dictionary<string, string>
+            {
+                ["Nop.Plugin.Wddc.AutomatedDelivery.Settings.TestMode"] = "Test mode",
+                ["Plugins.Wddc.AutomatedDelivery.Fields.AutomaticallyProcessOrdersWithWddc"] = "Automate orders",
+                ["Plugins.Wddc.AutomatedDelivery.Fields.AutomaticallyProcessOrdersWithWddc.Hint"] = "Check to automatically send orders to WDDC, uncheck for self-managed installs",
+                ["Enums.Nop.Core.Domain.Shipping.ShippingStatus.NotYetShipped"] = "Not yet shipped",
+                ["Admin.SalesReport.Incomplete.TotalNotShippedOrders"] = "Total not yet shipped orders",
+                ["Admin.Orders.List.ShippingStatus.Hint"] = "Search by a specific shipping statuses e.g. Not yet shipped.",
+                ["Admin.Customers.Reports.BestBy.ShippingStatus.Hint"] = "Search by a specific shipping statuses e.g. Not yet shipped.", // seems to be a dupe?
+                ["Admin.Affiliates.Orders.ShippingStatus.Hint"] = "Search by a specific shipping statuses e.g. Not yet shipped.", // seems to be a dupe?
+                ["Admin.Orders.Shipments.ShipSelected"] = "Set as shipped (selected)",
+            });
+            */
+            // get installation setting
+
 
             // find all wddc migration tasks
             var wddcTasks = new AppDomainTypeFinder()
@@ -147,7 +157,7 @@ namespace Nop.Plugin.Wddc.Core
 
             foreach (var type in wddcTasks)
             {
-                _scheduleTaskService.InsertTask(new ScheduleTask
+                await _scheduleTaskService.InsertTaskAsync(new ScheduleTask
                 {
                     Enabled = true,
                     Name = type.Name,
@@ -156,15 +166,34 @@ namespace Nop.Plugin.Wddc.Core
                     Type = $"{type}, {typeof(AutomatedDeliveryProvider).Namespace}",
                 });
             }
-            base.Install();
+            await base.InstallAsync();
         }
 
         /// <summary>
         /// Uninstall the plugin
         /// </summary>
-        public override void Uninstall()
+        public override async Task Uninstall()
         {
-            RevertStringResources();
+            //settings
+            if (_widgetSettings.ActiveWidgetSystemNames.Contains(SendinblueDefaults.SystemName))
+            {
+                _widgetSettings.ActiveWidgetSystemNames.Remove(SendinblueDefaults.SystemName);
+                await _settingService.SaveSettingAsync(_widgetSettings);
+            }
+            await _settingService.DeleteSettingAsync<SendinblueSettings>();
+
+            //generic attributes
+            foreach (var store in await _storeService.GetAllStoresAsync())
+            {
+                var messageTemplates = await _messageTemplateService.GetAllMessageTemplatesAsync(store.Id);
+                foreach (var messageTemplate in messageTemplates)
+                {
+                    await _genericAttributeService.SaveAttributeAsync<int?>(messageTemplate, SendinblueDefaults.TemplateIdAttribute, null);
+                }
+            }
+
+
+            await DeleteAttributesAsync();
 
             _settingService.DeleteSetting<AutomatedDeliverySettings>();
             this.DeletePluginLocaleResource("admin.orders.shipments.shipselected");
@@ -202,6 +231,11 @@ namespace Nop.Plugin.Wddc.Core
                 IconClass = "fa-clipboard",
             };
             rootNode.ChildNodes.Add(pluginNode);
+        }
+
+        public System.Threading.Tasks.Task ManageSiteMapAsync(SiteMapNode rootNode)
+        {
+            throw new System.NotImplementedException();
         }
 
         #endregion
