@@ -3,7 +3,7 @@
   "FriendlyName": "Credit Card (Stripe)",
   "SystemName": "WebTail.Stripe",
   "Version": "1.17",
-  "SupportedVersions": [ "4.30", "4.20", "4.10" ],
+  "SupportedVersions": [ "4.40", "4.30", "4.20", "4.10" ],
   "Author": "Web Tail Pty Ltd",
   "DisplayOrder": 1,
   "FileName": "Nop.WebTail.Stripe.dll",

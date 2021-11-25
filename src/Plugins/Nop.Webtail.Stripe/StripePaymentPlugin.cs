@@ -19,6 +19,7 @@ using Nop.WebTail.Stripe.Validators;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using stripe = Stripe;
 
 namespace Nop.WebTail.Stripe
@@ -54,19 +55,19 @@ namespace Nop.WebTail.Stripe
                                    StripePaymentSettings stripePaymentSettings,
                                    CurrencySettings currencySettings)
         {
-            this._localizationService = localizationService;
-            this._genericAttributeService = genericAttributeService;
-            this._currencyService = currencyService;
-            this._customerService = customerService;
-            this._stateProvinceService = stateProvinceService;
-            this._countryService = countryService;
-            this._webHelper = webHelper;
-            this._storeService = storeService;
-            this._settingService = settingService;
-            this._paymentService = paymentService;
-            this._stripePaymentSettings = stripePaymentSettings;
-            this._currencySettings = currencySettings;
-            this._logger = logger;
+            _localizationService = localizationService;
+            _genericAttributeService = genericAttributeService;
+            _currencyService = currencyService;
+            _customerService = customerService;
+            _stateProvinceService = stateProvinceService;
+            _countryService = countryService;
+            _webHelper = webHelper;
+            _storeService = storeService;
+            _settingService = settingService;
+            _paymentService = paymentService;
+            _stripePaymentSettings = stripePaymentSettings;
+            _currencySettings = currencySettings;
+            _logger = logger;
         }
 
         public bool SupportCapture => true;
@@ -83,17 +84,20 @@ namespace Nop.WebTail.Stripe
 
         public bool SkipPaymentInfo => false;
 
-        public string PaymentMethodDescription => this._localizationService.GetResource("WebTail.Payments.Stripe.PaymentMethodDescription");
+        public async Task<string> PaymentMethodDescriptionAsync()
+        { 
+            return await _localizationService.GetResourceAsync("WebTail.Payments.Stripe.PaymentMethodDescription");
+        }
 
         /// <summary>
         /// Gets a configuration page URL
         /// </summary>
         public override string GetConfigurationPageUrl()
         {
-            return $"{this._webHelper.GetStoreLocation()}Admin/{StripePaymentDefaults.ControllerName}/Configure";
+            return $"{_webHelper.GetStoreLocation()}Admin/{StripePaymentDefaults.ControllerName}/Configure";
         }
 
-        public CancelRecurringPaymentResult CancelRecurringPayment(CancelRecurringPaymentRequest cancelPaymentRequest)
+        public CancelRecurringPaymentResult CancelRecurringPaymentAsync(CancelRecurringPaymentRequest cancelPaymentRequest)
         {
             if (cancelPaymentRequest == null)
                 throw new ArgumentException(nameof(cancelPaymentRequest));
@@ -102,7 +106,7 @@ namespace Nop.WebTail.Stripe
             return new CancelRecurringPaymentResult();
         }
 
-        public bool CanRePostProcessPayment(Core.Domain.Orders.Order order)
+        public bool CanRePostProcessPaymentAsync(Core.Domain.Orders.Order order)
         {
             if (order == null)
                 throw new ArgumentNullException(nameof(order));
@@ -111,14 +115,14 @@ namespace Nop.WebTail.Stripe
             return false;
         }
 
-        public CapturePaymentResult Capture(CapturePaymentRequest capturePaymentRequest)
+        public async Task<CapturePaymentResult> CaptureAsync(CapturePaymentRequest capturePaymentRequest)
         {
             if (capturePaymentRequest == null)
                 throw new ArgumentNullException(nameof(capturePaymentRequest));
 
-            var currentStore = EngineContext.Current.Resolve<IStoreContext>().CurrentStore;
+            var currentStore = await EngineContext.Current.Resolve<IStoreContext>().GetCurrentStoreAsync();
 
-            stripe.Charge charge = capturePaymentRequest.CreateCapture(this._stripePaymentSettings, currentStore);
+            stripe.Charge charge = capturePaymentRequest.CreateCapture(_stripePaymentSettings, currentStore);
             
             if (charge.GetStatus() == StripeChargeStatus.Succeeded)
             {
@@ -145,9 +149,9 @@ namespace Nop.WebTail.Stripe
 
         }
 
-        public decimal GetAdditionalHandlingFee(IList<ShoppingCartItem> cart)
+        public async Task<decimal> GetAdditionalHandlingFeeAsync(IList<ShoppingCartItem> cart)
         {
-            var result = this._paymentService.CalculateAdditionalFee(cart, this._stripePaymentSettings.AdditionalFee, this._stripePaymentSettings.AdditionalFeePercentage);
+            var result = await _paymentService.CalculateAdditionalFeeAsync(cart, _stripePaymentSettings.AdditionalFee, _stripePaymentSettings.AdditionalFeePercentage);
 
             return result;
         }
@@ -170,13 +174,13 @@ namespace Nop.WebTail.Stripe
             return StripePaymentDefaults.ViewComponentName;
         }
 
-        public bool HidePaymentMethod(IList<ShoppingCartItem> cart)
+        public bool HidePaymentMethodAsync(IList<ShoppingCartItem> cart)
         {
 
-            bool dataMissing = string.IsNullOrEmpty(this._stripePaymentSettings.LivePublishableKey) ||
-                               string.IsNullOrEmpty(this._stripePaymentSettings.LiveSecretKey) ||
-                               string.IsNullOrEmpty(this._stripePaymentSettings.TestPublishableKey) ||
-                               string.IsNullOrEmpty(this._stripePaymentSettings.TestSecretKey);
+            bool dataMissing = string.IsNullOrEmpty(_stripePaymentSettings.LivePublishableKey) ||
+                               string.IsNullOrEmpty(_stripePaymentSettings.LiveSecretKey) ||
+                               string.IsNullOrEmpty(_stripePaymentSettings.TestPublishableKey) ||
+                               string.IsNullOrEmpty(_stripePaymentSettings.TestSecretKey);
             
             return dataMissing;
         }
@@ -186,64 +190,10 @@ namespace Nop.WebTail.Stripe
             
         }
 
-        public ProcessPaymentResult ProcessPayment(ProcessPaymentRequest processPaymentRequest, bool isRecurringPayment)
+
+        public async Task<RefundPaymentResult> RefundAsync(RefundPaymentRequest refundPaymentRequest)
         {
-            
-            var currentStore = EngineContext.Current.Resolve<IStoreContext>().CurrentStore;
-            var chargeResponse = processPaymentRequest.CreateCharge(this._stripePaymentSettings, 
-                                                                    this._currencySettings,
-                                                                    currentStore, 
-                                                                    this._customerService, 
-                                                                    this._stateProvinceService,
-                                                                    this._countryService,
-                                                                    this._currencyService, 
-                                                                    this._genericAttributeService);
-                
-            if (chargeResponse.GetStatus() == StripeChargeStatus.Failed)
-                throw new NopException(chargeResponse.FailureMessage);
-                
-            string transactionResult = $"Transaction was processed by using Stripe. Status is {chargeResponse.GetStatus()}";
-            var result = new ProcessPaymentResult()
-            {
-                NewPaymentStatus = chargeResponse.GetPaymentStatus(this._stripePaymentSettings.TransactionMode)
-            };
-
-            if (this._stripePaymentSettings.TransactionMode == TransactionMode.Authorize)
-            {
-                result.AuthorizationTransactionId = chargeResponse.Id;
-                result.AuthorizationTransactionResult = transactionResult;
-            }
-                
-            if (this._stripePaymentSettings.TransactionMode == TransactionMode.Charge)
-            {
-                result.CaptureTransactionId = chargeResponse.Id;
-                result.CaptureTransactionResult = transactionResult;
-            }
-                
-            return result;
-            
-            
-        }
-
-        public ProcessPaymentResult ProcessPayment(ProcessPaymentRequest processPaymentRequest)
-        {
-            if (processPaymentRequest == null)
-                throw new ArgumentException(nameof(processPaymentRequest));
-
-            return this.ProcessPayment(processPaymentRequest, false);
-        }
-
-        public ProcessPaymentResult ProcessRecurringPayment(ProcessPaymentRequest processPaymentRequest)
-        {
-            if (processPaymentRequest == null)
-                throw new ArgumentException(nameof(processPaymentRequest));
-
-            return this.ProcessPayment(processPaymentRequest, true);
-        }
-
-        public RefundPaymentResult Refund(RefundPaymentRequest refundPaymentRequest)
-        {
-            var refund = refundPaymentRequest.CreateRefund(this._stripePaymentSettings, this._currencySettings, this._currencyService);
+            var refund = refundPaymentRequest.CreateRefund(_stripePaymentSettings, _currencySettings, _currencyService);
 
             if (refund.GetStatus() != StripeRefundStatus.Succeeded)
             {
@@ -264,7 +214,7 @@ namespace Nop.WebTail.Stripe
             var warnings = new List<string>();
 
             //validate
-            var validator = new PaymentInfoValidator(this._localizationService);
+            var validator = new PaymentInfoValidator(_localizationService);
             var model = new PaymentInfoModel
             {
                 CardholderName = form["CardholderName"],
@@ -285,10 +235,10 @@ namespace Nop.WebTail.Stripe
             throw new NotImplementedException();
         }
 
-        public override void Install()
+        public override async Task InstallAsync()
         {
             //settings
-            this._settingService.SaveSetting(new StripePaymentSettings
+            await _settingService.SaveSettingAsync(new StripePaymentSettings
             {
                 UseSandbox = true,
                 AdditionalFee = 0,
@@ -298,8 +248,9 @@ namespace Nop.WebTail.Stripe
                 TestPublishableKey = string.Empty,
                 TestSecretKey = string.Empty,
             });
-
-            this._localizationService.AddOrUpdatePluginLocaleResource("Webtail.Payments.Stripe.Instructions", @"
+            await _localizationService.AddLocaleResourceAsync(new Dictionary<string, string>
+            {
+                ["Webtail.Payments.Stripe.Instructions"] = @"
                 <p>
                     For plugin configuration follow these steps:<br />
                     <br />
@@ -308,54 +259,131 @@ namespace Nop.WebTail.Stripe
                     2. Sign in to your Stripe Developer Portal at <a href=""https://dashboard.stripe.com/login"" target=""_blank"">https://dashboard.stripe.com/login</a>; use the same sign in credentials as your merchant account.<br />
                     3. Use the API keys provided at <a href=""https://dashboard.stripe.com/account/apikeys"" target=""_blank"">https://dashboard.stripe.com/account/apikeys</a> to configure the account.
                     <br />
-                </p>");
+                </p>",
 
-            this._localizationService.AddOrUpdatePluginLocaleResource("WebTail.Payments.Stripe.Fields.UseSandbox", "Use sandbox");
-            this._localizationService.AddOrUpdatePluginLocaleResource("WebTail.Payments.Stripe.Fields.UseSandbox.Hint", "Determine whether to use sandbox credentials.");
-            this._localizationService.AddOrUpdatePluginLocaleResource("WebTail.Payments.Stripe.Fields.TransactionMode", "Transaction mode");
-            this._localizationService.AddOrUpdatePluginLocaleResource("WebTail.Payments.Stripe.Fields.TransactionMode.Hint", "Choose the transaction mode.");
+                ["WebTail.Payments.Stripe.Fields.UseSandbox"] = "Use sandbox",
+                ["WebTail.Payments.Stripe.Fields.UseSandbox.Hint"] = "Determine whether to use sandbox credentials.",
+                ["WebTail.Payments.Stripe.Fields.TransactionMode"] = "Transaction mode",
+                ["WebTail.Payments.Stripe.Fields.TransactionMode.Hint"] = "Choose the transaction mode.",
 
-            this._localizationService.AddOrUpdatePluginLocaleResource("WebTail.Payments.Stripe.Fields.LiveSecretKey", "Live Secret Key");
-            this._localizationService.AddOrUpdatePluginLocaleResource("WebTail.Payments.Stripe.Fields.LivePublishableKey", "Live Publishable Key");
-            this._localizationService.AddOrUpdatePluginLocaleResource("WebTail.Payments.Stripe.Fields.TestSecretKey", "Test Secret Key");
-            this._localizationService.AddOrUpdatePluginLocaleResource("WebTail.Payments.Stripe.Fields.TestPublishableKey", "Test Publishable Key");
+                ["WebTail.Payments.Stripe.Fields.LiveSecretKey"] = "Live Secret Key",
+                ["WebTail.Payments.Stripe.Fields.LivePublishableKey"] = "Live Publishable Key",
+                ["WebTail.Payments.Stripe.Fields.TestSecretKey"] = "Test Secret Key",
+                ["WebTail.Payments.Stripe.Fields.TestPublishableKey"] = "Test Publishable Key",
 
-            this._localizationService.AddOrUpdatePluginLocaleResource("WebTail.Payments.Stripe.Fields.AdditionalFee", "Additional Fee");
-            this._localizationService.AddOrUpdatePluginLocaleResource("WebTail.Payments.Stripe.Fields.AdditionalFeePercentage", "Is Fee Percentage");
-            this._localizationService.AddOrUpdatePluginLocaleResource("WebTail.Payments.Stripe.PaymentMethodDescription", "Pay By Credit Card");
+                ["WebTail.Payments.Stripe.Fields.AdditionalFee"] = "Additional Fee",
+                ["WebTail.Payments.Stripe.Fields.AdditionalFeePercentage"] = "Is Fee Percentage",
+                ["WebTail.Payments.Stripe.PaymentMethodDescription"] = "Pay By Credit Card",
 
-            this._localizationService.AddOrUpdatePluginLocaleResource("WebTail.Payments.Labels.ExpirationMonth", "Expiry Month");
-            this._localizationService.AddOrUpdatePluginLocaleResource("WebTail.Payments.Labels.ExpirationYear", "Expiry Year");
+                ["WebTail.Payments.Labels.ExpirationMonth"] = "Expiry Month",
+                ["WebTail.Payments.Labels.ExpirationYear"] = "Expiry Year",
+            });
 
-            base.Install();
+            await base.InstallAsync();
         }
 
-        public override void Uninstall()
+        public override async Task UninstallAsync()
         {
-            this._settingService.DeleteSetting<StripePaymentSettings>();
+            await _settingService.DeleteSettingAsync<StripePaymentSettings>();
 
-            this._localizationService.DeletePluginLocaleResource("Webtail.Payments.Stripe.Instructions");
+            await _localizationService.DeleteLocaleResourcesAsync("Webtail.Payments.Stripe");
 
-            this._localizationService.DeletePluginLocaleResource("WebTail.Payments.Stripe.Fields.UseSandbox");
-            this._localizationService.DeletePluginLocaleResource("WebTail.Payments.Stripe.Fields.UseSandbox.Hint");
-            this._localizationService.DeletePluginLocaleResource("WebTail.Payments.Stripe.Fields.TransactionMode");
-            this._localizationService.DeletePluginLocaleResource("WebTail.Payments.Stripe.Fields.TransactionMode.Hint");
-
-            this._localizationService.DeletePluginLocaleResource("WebTail.Payments.Stripe.Fields.LiveSecretKey");
-            this._localizationService.DeletePluginLocaleResource("WebTail.Payments.Stripe.Fields.LivePublishableKey");
-            this._localizationService.DeletePluginLocaleResource("WebTail.Payments.Stripe.Fields.TestSecretKey");
-            this._localizationService.DeletePluginLocaleResource("WebTail.Payments.Stripe.Fields.TestPublishableKey");
-
-            this._localizationService.DeletePluginLocaleResource("WebTail.Payments.Stripe.Fields.AdditionalFee");
-            this._localizationService.DeletePluginLocaleResource("WebTail.Payments.Stripe.Fields.AdditionalFeePercentage");
-            this._localizationService.DeletePluginLocaleResource("WebTail.Payments.Stripe.PaymentMethodDescription");
-
-
-            this._localizationService.DeletePluginLocaleResource("WebTail.Payments.Labels.ExpirationMonth");
-            this._localizationService.DeletePluginLocaleResource("WebTail.Payments.Labels.ExpirationYear");
-
-            base.Uninstall();
+            await base.UninstallAsync();
         }
 
+        public async Task<ProcessPaymentResult> ProcessPaymentAsync(ProcessPaymentRequest processPaymentRequest, bool isRecurringPayment)
+        {
+            // TODO: this the override for recurring
+
+            var currentStore = await EngineContext.Current.Resolve<IStoreContext>().GetCurrentStoreAsync();
+            var chargeResponse = processPaymentRequest.CreateCharge(_stripePaymentSettings,
+                                                                    _currencySettings,
+                                                                    currentStore,
+                                                                    _customerService,
+                                                                    _stateProvinceService,
+                                                                    _countryService,
+                                                                    _currencyService,
+                                                                    _genericAttributeService);
+
+            if (chargeResponse.GetStatus() == StripeChargeStatus.Failed)
+                throw new NopException(chargeResponse.FailureMessage);
+
+            string transactionResult = $"Transaction was processed by using Stripe. Status is {chargeResponse.GetStatus()}";
+            var result = new ProcessPaymentResult()
+            {
+                NewPaymentStatus = chargeResponse.GetPaymentStatus(_stripePaymentSettings.TransactionMode)
+            };
+
+            if (_stripePaymentSettings.TransactionMode == TransactionMode.Authorize)
+            {
+                result.AuthorizationTransactionId = chargeResponse.Id;
+                result.AuthorizationTransactionResult = transactionResult;
+            }
+
+            if (_stripePaymentSettings.TransactionMode == TransactionMode.Charge)
+            {
+                result.CaptureTransactionId = chargeResponse.Id;
+                result.CaptureTransactionResult = transactionResult;
+            }
+
+            return result;
+        }
+
+        public Task<ProcessPaymentResult> ProcessPaymentAsync(ProcessPaymentRequest processPaymentRequest)
+        {
+            if (processPaymentRequest == null)
+                throw new ArgumentException(nameof(processPaymentRequest));
+
+            return ProcessPaymentAsync(processPaymentRequest, false);
+        }
+
+        public Task<ProcessPaymentResult> ProcessRecurringPaymentAsync(ProcessPaymentRequest processPaymentRequest)
+        {
+            if (processPaymentRequest == null)
+                throw new ArgumentException(nameof(processPaymentRequest));
+
+            return ProcessPaymentAsync(processPaymentRequest, true);
+        }
+
+
+        public Task PostProcessPaymentAsync(PostProcessPaymentRequest postProcessPaymentRequest)
+        {
+            throw new NotImplementedException();
+        }
+
+        Task<bool> IPaymentMethod.HidePaymentMethodAsync(IList<ShoppingCartItem> cart)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<VoidPaymentResult> VoidAsync(VoidPaymentRequest voidPaymentRequest)
+        {
+            throw new NotImplementedException();
+        }
+
+        Task<CancelRecurringPaymentResult> IPaymentMethod.CancelRecurringPaymentAsync(CancelRecurringPaymentRequest cancelPaymentRequest)
+        {
+            throw new NotImplementedException();
+        }
+
+        Task<bool> IPaymentMethod.CanRePostProcessPaymentAsync(Order order)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IList<string>> ValidatePaymentFormAsync(IFormCollection form)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<ProcessPaymentRequest> GetPaymentInfoAsync(IFormCollection form)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<string> GetPaymentMethodDescriptionAsync()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -7,7 +7,7 @@ using System.Text;
 
 namespace Nop.WebTail.Stripe.Models
 {
-    public class PaymentInfoModel : BaseNopModel
+    public record PaymentInfoModel : BaseNopModel
     {
         public PaymentInfoModel()
         {

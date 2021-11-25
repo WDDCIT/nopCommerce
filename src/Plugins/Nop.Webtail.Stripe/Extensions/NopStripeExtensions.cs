@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using stripe = Stripe;
 
 namespace Nop.WebTail.Stripe.Extensions
@@ -100,7 +101,7 @@ namespace Nop.WebTail.Stripe.Extensions
             }
         }
         
-        public static stripe.TokenCreateOptions CreateTokenOptions(this ProcessPaymentRequest processPaymentRequest,
+        public async static Task<TokenCreateOptions> CreateTokenOptionsAsync(this ProcessPaymentRequest processPaymentRequest,
             ICustomerService customerService,
             IStateProvinceService stateProvinceService,
             ICountryService countryService,
@@ -108,11 +109,11 @@ namespace Nop.WebTail.Stripe.Extensions
         {
             return new stripe.TokenCreateOptions()
             {
-                Card = processPaymentRequest.CreateCreditCardOptions(customerService, stateProvinceService, countryService, stripeCurrency)
+                Card = await processPaymentRequest.CreateCreditCardOptionsAsync(customerService, stateProvinceService, countryService, stripeCurrency)
             };
         }
 
-        public static stripe.CreditCardOptions CreateCreditCardOptions(this ProcessPaymentRequest processPaymentRequest,
+        public async static Task<CreditCardOptions> CreateCreditCardOptionsAsync(this ProcessPaymentRequest processPaymentRequest,
             ICustomerService customerService,
             IStateProvinceService stateProvinceService,
             ICountryService countryService,
@@ -129,14 +130,14 @@ namespace Nop.WebTail.Stripe.Extensions
                 Number = processPaymentRequest.CreditCardNumber,
             };
 
-            var customer = customerService.GetCustomerById(processPaymentRequest.CustomerId);
-            var customerBillingAddress = customerService.GetCustomerBillingAddress(customer);
+            var customer = await customerService.GetCustomerByIdAsync(processPaymentRequest.CustomerId);
+            var customerBillingAddress = await customerService.GetCustomerBillingAddressAsync(customer);
             var billingStateProvince = customerBillingAddress.StateProvinceId.HasValue ?
-                                                    stateProvinceService.GetStateProvinceById(customerBillingAddress.StateProvinceId.Value) :
+                                                    await stateProvinceService.GetStateProvinceByIdAsync(customerBillingAddress.StateProvinceId.Value) :
                                                     null;
 
             var billingCountry = customerBillingAddress != null && customerBillingAddress.CountryId.HasValue ?
-                            countryService.GetCountryById(customerBillingAddress.CountryId.Value) :
+                            await countryService.GetCountryByIdAsync(customerBillingAddress.CountryId.Value) :
                             null;
 
             if (customer != null && customerBillingAddress != null)
@@ -182,13 +183,13 @@ namespace Nop.WebTail.Stripe.Extensions
             return customerCreateOptions;
         }
 
-        public static stripe.Customer GetOrCreateCustomer(this stripe.CustomerService customerService, Core.Domain.Customers.Customer customer, IGenericAttributeService genericAttributeService, StripePaymentSettings paymentSettings)
+        public async static Task<stripe.Customer> GetOrCreateCustomerAsync(this stripe.CustomerService customerService, Core.Domain.Customers.Customer customer, IGenericAttributeService genericAttributeService, StripePaymentSettings paymentSettings)
         {
-            string stripeCustomerId = genericAttributeService.GetAttribute<string>(customer, paymentSettings.GetCustomerIdKey());
+            string stripeCustomerId = await genericAttributeService.GetAttributeAsync<string>(customer, paymentSettings.GetCustomerIdKey());
             stripe.Customer result = customerService.GetOrCreateCustomer(customer, stripeCustomerId, paymentSettings);
 
             if (string.IsNullOrEmpty(stripeCustomerId))
-                genericAttributeService.SaveAttribute(customer, paymentSettings.GetCustomerIdKey(), result.Id);
+                await genericAttributeService.SaveAttributeAsync(customer, paymentSettings.GetCustomerIdKey(), result.Id);
 
             return result;
         }
@@ -201,7 +202,7 @@ namespace Nop.WebTail.Stripe.Extensions
                 return customerService.Create(customer.CreateCustomerOptions(paymentSettings));
         }
 
-        public static stripe.Charge CreateCharge(this ProcessPaymentRequest processPaymentRequest, 
+        public async static stripe.Charge CreateChargeAsync(this ProcessPaymentRequest processPaymentRequest, 
             StripePaymentSettings stripePaymentSettings,
             CurrencySettings currencySettings, 
             Store store, 
@@ -212,11 +213,11 @@ namespace Nop.WebTail.Stripe.Extensions
             IGenericAttributeService genericAttributeService)
         {
 
-            var customer = customerService.GetCustomerById(processPaymentRequest.CustomerId);
+            var customer = await customerService.GetCustomerByIdAsync(processPaymentRequest.CustomerId);
             if (customer == null)
                 throw new NopException("Customer cannot be loaded");
 
-            var currency = currencyService.GetCurrencyById(currencySettings.PrimaryStoreCurrencyId);
+            var currency = await currencyService.GetCurrencyByIdAsync(currencySettings.PrimaryStoreCurrencyId);
             if (currency == null)
                 throw new NopException("Primary store currency cannot be loaded");
 
@@ -228,9 +229,9 @@ namespace Nop.WebTail.Stripe.Extensions
             var chargeService = new stripe.ChargeService(stripePaymentSettings.GetStripeClient());
             var tokenService = new stripe.TokenService(stripePaymentSettings.GetStripeClient());
                 
-            var stripeCustomer = stripeCustomerService.GetOrCreateCustomer(customer, genericAttributeService, stripePaymentSettings);
+            var stripeCustomer = await stripeCustomerService.GetOrCreateCustomerAsync(customer, genericAttributeService, stripePaymentSettings);
 
-            var tokenOptions = processPaymentRequest.CreateTokenOptions(customerService, stateProvinceService, countryService, stripeCurrency);
+            var tokenOptions = await processPaymentRequest.CreateTokenOptionsAsync(customerService, stateProvinceService, countryService, stripeCurrency);
             var token = tokenService.Create(tokenOptions);
             var chargeOptions = processPaymentRequest.CreateChargeOptions(store, token, stripePaymentSettings.TransactionMode, stripeCurrency);
               
@@ -239,9 +240,9 @@ namespace Nop.WebTail.Stripe.Extensions
            
         }
 
-        public static stripe.Refund CreateRefund(this RefundPaymentRequest refundPaymentRequest, StripePaymentSettings stripePaymentSettings, CurrencySettings currencySettings, ICurrencyService currencyService)
+        public async static Task<Refund> CreateRefundAsync(this RefundPaymentRequest refundPaymentRequest, StripePaymentSettings stripePaymentSettings, CurrencySettings currencySettings, ICurrencyService currencyService)
         {
-            var currency = currencyService.GetCurrencyById(currencySettings.PrimaryStoreCurrencyId);
+            var currency = await currencyService.GetCurrencyByIdAsync(currencySettings.PrimaryStoreCurrencyId);
             if (currency == null)
                 throw new NopException("Primary store currency cannot be loaded");
             
