@@ -1,8 +1,8 @@
-﻿@{
-    Layout = "";
+﻿@model ConfigurationModel
+
+@{
+    Layout = "_ConfigurePlugin";
 }
-@model Nop.Plugin.Wddc.Core.Models.ConfigureModel
-@using Nop.Web.Framework;
 
 @Html.Action("StoreScopeConfiguration", "Setting", new { area = "Admin" })
 
