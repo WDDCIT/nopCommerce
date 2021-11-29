@@ -202,7 +202,7 @@ namespace Nop.WebTail.Stripe.Extensions
                 return customerService.Create(customer.CreateCustomerOptions(paymentSettings));
         }
 
-        public async static stripe.Charge CreateChargeAsync(this ProcessPaymentRequest processPaymentRequest, 
+        public async static Task<Charge> CreateChargeAsync(this ProcessPaymentRequest processPaymentRequest, 
             StripePaymentSettings stripePaymentSettings,
             CurrencySettings currencySettings, 
             Store store, 
