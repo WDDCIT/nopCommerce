@@ -7,11 +7,10 @@ namespace Nop.Plugin.Wddc.Core.Infrastructure
 {
     public partial class RouteProvider : IRouteProvider
     {
+
         public void RegisterRoutes(IEndpointRouteBuilder endpointRouteBuilder)
         {
-            //PDT
-            endpointRouteBuilder.MapControllerRoute("Plugin.Wddc.Core.", "Plugins/PaymentPayPalStandard/PDTHandler",
-                            new { controller = "PaymentPayPalStandard", action = "PDTHandler" });
+            throw new System.NotImplementedException();
         }
         public int Priority => -1;
     }
