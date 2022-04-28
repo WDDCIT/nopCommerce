@@ -11,7 +11,7 @@ namespace Nop.WebTail.Stripe.Validators
 {
     public class PaymentInfoValidator : BaseNopValidator<PaymentInfoModel>
     {
-        public async Task PaymentInfoValidator(ILocalizationService localizationService)
+        public PaymentInfoValidator(ILocalizationService localizationService)
         {
             //useful links:
             //http://fluentvalidation.codeplex.com/wikipage?title=Custom&referringTitle=Documentation&ANCHOR#CustomValidator
@@ -21,10 +21,10 @@ namespace Nop.WebTail.Stripe.Validators
             //RuleFor(x => x.CardCode).NotEmpty().WithMessage(localizationService.GetResource("Payment.CardCode.Required"));
 
             this.RuleFor(x => x.CardholderName).NotEmpty().WithMessage(await localizationService.GetResourceAsync("Payment.CardholderName.Required"));
-            this.RuleFor(x => x.CardNumber).IsCreditCard().WithMessage(await llocalizationService.GetResourceAsync("Payment.CardNumber.Wrong"));
-            this.RuleFor(x => x.CardCode).Matches(@"^[0-9]{3,4}$").WithMessage(await llocalizationService.GetResourceAsync("Payment.CardCode.Wrong"));
-            this.RuleFor(x => x.ExpireMonth).NotEmpty().WithMessage(await llocalizationService.GetResourceAsync("Payment.ExpireMonth.Required"));
-            this.RuleFor(x => x.ExpireYear).NotEmpty().WithMessage(await llocalizationService.GetResourceAsync("Payment.ExpireYear.Required"));
+            this.RuleFor(x => x.CardNumber).IsCreditCard().WithMessage(await localizationService.GetResourceAsync("Payment.CardNumber.Wrong"));
+            this.RuleFor(x => x.CardCode).Matches(@"^[0-9]{3,4}$").WithMessage(await localizationService.GetResourceAsync("Payment.CardCode.Wrong"));
+            this.RuleFor(x => x.ExpireMonth).NotEmpty().WithMessage(await localizationService.GetResourceAsync("Payment.ExpireMonth.Required"));
+            this.RuleFor(x => x.ExpireYear).NotEmpty().WithMessage(await localizationService.GetResourceAsync("Payment.ExpireYear.Required"));
             this.RuleFor(x => x.ExpireMonth).Must((x, context) =>
             {
                 //not specified yet
@@ -39,7 +39,7 @@ namespace Nop.WebTail.Stripe.Validators
                     return false;
 
                 return true;
-            }).WithMessage(await llocalizationService.GetResourceAsync("Payment.ExpirationDate.Expired"));
+            }).WithMessage(await localizationService.GetResourceAsync("Payment.ExpirationDate.Expired"));
         }
     }
 }

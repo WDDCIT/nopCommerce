@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <None Remove="Areas\Admin\Views\Order\_OrderDetails.Products.cshtml" />
+    <None Remove="Areas\Admin\Views\Product\List.cshtml" />
     <None Remove="logo.jpg" />
 	<None Remove="plugin.json" />
   </ItemGroup>
@@ -37,16 +38,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="Areas\Admin\Views\Product\List.cshtml" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Update="Areas\Admin\Views\_ViewImports.cshtml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Areas\Admin\Controllers\" />
     <Folder Include="Areas\Admin\Extensions\" />
-    <Folder Include="Areas\Admin\Factories\" />
-    <Folder Include="Areas\Admin\Models\" />
     <Folder Include="Controllers\" />
     <Folder Include="Extensions\" />
     <Folder Include="Factories\" />

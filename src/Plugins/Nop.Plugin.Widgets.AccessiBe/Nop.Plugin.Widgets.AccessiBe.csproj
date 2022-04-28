@@ -20,7 +20,6 @@
   <ItemGroup>
     <None Remove="logo.png" />
     <None Remove="plugin.json" />
-    <None Remove="Views\Configure.cshtml" />
     <None Remove="Views\_ViewImports.cshtml" />
   </ItemGroup>
 
